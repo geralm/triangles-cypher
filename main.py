@@ -2,7 +2,15 @@
 import argparse
 import json
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+import unicodedata
+
+SCREEN_WITH=1200
+SCREEN_HEIGHT=800
+
+MARGIN_LEFT=10
+MARGIN_RIGHT=10
+
+INITIAL_BASELINE=750 #position in y axis 
 
 # Definición de LINES_MAP base
 LINES_MAP = {
@@ -12,6 +20,11 @@ LINES_MAP = {
     "top_left":       [10, 30, 20, 45],
     "top_right":      [30, 30, 20, 45],
 }
+def remove_accent(text):
+    return ''.join(
+        c for c in unicodedata.normalize('NFKD', text)
+        if not unicodedata.combining(c)
+    )
 
 # Cargar keymap (abecedario)
 def load_keymap(keymap_file="keymap.json"):
@@ -65,7 +78,16 @@ def draw_letter(ax, letter_config, position, size):
         else:
             print(f"Advertencia: línea '{line_key}' no existe en LINES_MAP")
 
-# Dibuja el texto completo (respetando saltos de línea)
+def check_fit(word, x_pos, letter_box_spacing):
+    """
+    Verifica si la palabra cabe en la línea actual.
+    Retorna True si cabe, False si no.
+    """
+    word_width = len(word) * letter_box_spacing
+    return (x_pos + word_width) <= (SCREEN_WITH - MARGIN_RIGHT)
+
+
+
 def draw_text(ax, keymap, input_content, size):
     """
     Dibuja todo el texto leído en el canvas, sin padding/margen entre letras,
@@ -73,32 +95,42 @@ def draw_text(ax, keymap, input_content, size):
     """
     letter_box_width = size * 0.4   #0.4 tamaño de caja por letra (ajustable)
     line_height = size * 0.6  # 0.6 altura de renglón proporcional
-    margen_izq = 10
-    baseline_y = 750  # baseline inicial
 
-    x_pos = margen_izq
+    margin_left = MARGIN_LEFT
+    baseline_y = INITIAL_BASELINE  # baseline inicial
+
+    x_pos = margin_left
 
     for line in input_content:
         text_line = line.strip('\n')
+        text_line = remove_accent(text_line)
 
         if not text_line:
             # salto de línea
             baseline_y -= line_height
-            x_pos = margen_izq
+            x_pos = margin_left
             continue
 
-        for letter in text_line:
-            if letter.lower() in keymap:
-                draw_letter(ax, keymap[letter.lower()], (x_pos, baseline_y), size)
-                x_pos += letter_box_width
-            elif letter == " ":
-                x_pos += letter_box_width               
-            else:
-                print(f"Letra no encontrada en keymap: '{letter}'")
+        words = text_line.split(" ")
+        for word in words:
+            #check if the word fits in the same line
+            word_fits = check_fit(word , x_pos, letter_box_width)
+            if not word_fits:
+                baseline_y -= line_height
+                x_pos = margin_left
+
+            for letter in word:
+                if letter.lower() in keymap:
+                    draw_letter(ax, keymap[letter.lower()], (x_pos, baseline_y), size)
+                    x_pos += letter_box_width
+                elif letter == " ":
+                    x_pos += letter_box_width               
+                else:
+                    print(f"Letra no encontrada en keymap: '{letter}'")
 
         # Al terminar la línea → salto de línea
         baseline_y -= line_height
-        x_pos = margen_izq
+        x_pos = margin_left
 
 # Main program
 def main():
@@ -107,9 +139,12 @@ def main():
     parser.add_argument("-o", required=True, type=str, help="Nombre del archivo de salida (PDF o PNG).")
     parser.add_argument("-i", required=True, type=str, help="Archivo de texto con el contenido a traducir.")
     parser.add_argument("--shuffle", action="store_true", help="Indica si se debe mezclar el contenido. (no implementado)")
-    parser.add_argument("--no-guideline", action="store_true", help="Indica si se debe mezclar el contenido. (no implementado)")
-    parser.add_argument("--no-abc", action="store_true", help="Indica si se debe mezclar el contenido. (no implementado)")
+    parser.add_argument("--dotted-guidelines", action="store_true", help="Indica si se deben dibujar las líneas guía con estilo punteado.")
+    parser.add_argument("--no-abc", action="store_true", help="Indica si NO se debe generar el archivo abecedario {filename}_abc.pdf")
+    parser.add_argument("--no-decoded", action="store_true", help="Indica si NO se debe generar el archivo {filename}_decoded.pdf")
     parser.add_argument("--size", type=int, default=50, help="Tamaño de la letra. Por defecto es 50.")
+    parser.add_argument("--letter-spacing", type=int, default=0.4, help="Espacio entre letras")
+    parser.add_argument("--line-spacing", type=int, default=0.6, help="Espacio entre lineas")
     parser.add_argument("--keymapfile", type=str, default="keymap.json", help="Archivo keymap a cargar (default: keymap.json).")
 
     args = parser.parse_args()
@@ -137,8 +172,8 @@ def main():
     draw_text(ax, keymap, input_content, args.size)
 
     # Ajustes finales del canvas
-    ax.set_xlim(0, 1200)
-    ax.set_ylim(0, 800)
+    ax.set_xlim(0, SCREEN_WITH)
+    ax.set_ylim(0, SCREEN_HEIGHT)
     ax.axis('off')
 
     # Guardar el resultado
