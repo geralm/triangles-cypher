@@ -173,7 +173,7 @@ class SymbolicEncoder:
 
     def generate_abc(self, output_filename, letter_spacing=0.4, line_spacing=0.6):
         abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        abc_line = [abc]
+        abc_line = [abc[i:i+5] for i in range(0, len(abc), 5)]
 
         c = canvas.Canvas(output_filename, pagesize=letter)
         self.draw_text(
