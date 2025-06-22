@@ -89,7 +89,7 @@ class SymbolicEncoder:
         if show_letters and letter_char:
             if letter_position == 'below':
                 ax.text(
-                    x_offset + (size * 0.2),
+                    x_offset + (size * 0.4),
                     baseline_y - (size * 1.2),
                     letter_char.upper(),
                     fontsize=size * 0.2,
@@ -112,7 +112,7 @@ class SymbolicEncoder:
         word_width = len(word) * letter_box_spacing
         return (x_pos + word_width) <= (self.SCREEN_WIDTH - self.MARGIN_RIGHT)
 
-    def draw_text(self, input_content, letter_spacing=0.4, line_spacing=0.6, show_letters=False, letter_position='below', dotted_guidelines=False):
+    def draw_text(self, input_content, letter_spacing=0.4, line_spacing=0.6, show_letters=False, letter_position='below', dotted_guidelines=False, trim_words=False):
         """
         Dibuja el texto completo en el canvas.
         """
@@ -155,10 +155,12 @@ class SymbolicEncoder:
                             letter_char=letter
                         )
                         x_pos += letter_box_width
-                    elif letter == " ":
-                        x_pos += letter_box_width
+                        
                     else:
                         print(f"Letra no encontrada en keymap: '{letter}'")
+
+                if not trim_words: 
+                    x_pos += letter_box_width
 
             baseline_y -= line_height
             x_pos = self.MARGIN_LEFT
